@@ -1,0 +1,11 @@
+location="eastus" # Change this to the location you want to deploy to
+resource_group_name_prefix="apigee"
+system_pool_node_count=1
+runtime_pool_min_count=2
+runtime_pool_max_count=2
+runtime_pool_enable_autoscaling=true
+data_pool_min_count=1
+data_pool_max_count=1
+data_pool_enable_autoscaling=true
+kubernetes_version = "1.31"
+

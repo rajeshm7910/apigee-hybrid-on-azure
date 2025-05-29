@@ -1,48 +1,106 @@
 #!/bin/bash
 
+# Default values
+APIGEE_VERSION="1.14.2-hotfix.1"
+APIGEE_NAMESPACE="apigee"
+
+# Function to display usage
+usage() {
+    echo "Usage: $0 [options]"
+    echo "Options:"
+    echo "  -v, --version VERSION       Apigee version (default: $APIGEE_VERSION)"
+    echo "  -n, --namespace NAMESPACE   Apigee namespace (default: $APIGEE_NAMESPACE)"
+    echo "  -o, --overrides PATH        Path to overrides.yaml file (required)"
+    echo "  -s, --service PATH          Path to service template file (required)"
+    echo "  -k, --key PATH              Path to service account key JSON file (required)"
+    echo "  -c, --cert PATH             Path to environment group certificate file (required)"
+    echo "  -p, --private-key PATH      Path to environment group private key file (required)"
+    echo "  -h, --help                  Display this help message"
+    exit 1
+}
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -v|--version)
+            APIGEE_VERSION="$2"
+            shift 2
+            ;;
+        -n|--namespace)
+            APIGEE_NAMESPACE="$2"
+            shift 2
+            ;;
+        -o|--overrides)
+            OVERRIDES_YAML_PATH="$2"
+            shift 2
+            ;;
+        -s|--service)
+            SERVICE_TEMPLATE_PATH="$2"
+            shift 2
+            ;;
+        -k|--key)
+            SA_KEY_JSON_PATH="$2"
+            shift 2
+            ;;
+        -c|--cert)
+            ENVGROUP_CERT_PATH="$2"
+            shift 2
+            ;;
+        -p|--private-key)
+            ENVGROUP_PRIVATE_KEY_PATH="$2"
+            shift 2
+            ;;
+        -h|--help)
+            usage
+            ;;
+        *)
+            echo "Unknown option: $1"
+            usage
+            ;;
+    esac
+done
+
+# Validate required parameters
+if [ -z "$OVERRIDES_YAML_PATH" ] || [ -z "$SERVICE_TEMPLATE_PATH" ] || \
+   [ -z "$SA_KEY_JSON_PATH" ] || [ -z "$ENVGROUP_CERT_PATH" ] || \
+   [ -z "$ENVGROUP_PRIVATE_KEY_PATH" ]; then
+    echo "Error: Missing required parameters"
+    usage
+fi
+
 setup_apigee() {
-
-    local apigee_version=$1
-    local apigee_namespace=$2
-    local apigee_overrides_yaml_path=$3
-    local apigee_service_template_path=$4
-    local apigee_sa_key_json_path=$5
-    local apigee_envgroup_cert_file_path=$6
-    local apigee_envgroup_private_key_file_path=$7
-
-    if [ -z "$apigee_namespace" ]; then
+    if [ -z "$APIGEE_NAMESPACE" ]; then
         echo "Apigee namespace is required"
         exit 1
     fi
 
-    if [ -z "$apigee_overrides_yaml_path" ]; then
+    if [ -z "$OVERRIDES_YAML_PATH" ]; then
         echo "Apigee overrides YAML is required"
         exit 1
     fi
 
-    if [ -z "$apigee_sa_key_json_path" ]; then
+    if [ -z "$SA_KEY_JSON_PATH" ]; then
         echo "Apigee SA key JSON is required"
         exit 1
     fi
 
-    if [ -z "$apigee_envgroup_cert_file_path" ]; then
+    if [ -z "$ENVGROUP_CERT_PATH" ]; then
         echo "Apigee envgroup cert file is required"
         exit 1
     fi
 
-    if [ -z "$apigee_envgroup_private_key_file_path" ]; then
+    if [ -z "$ENVGROUP_PRIVATE_KEY_PATH" ]; then
         echo "Apigee envgroup private key file is required"
         exit 1
     fi
 
-    if [ -z "$apigee_service_template_path" ]; then
+    if [ -z "$SERVICE_TEMPLATE_PATH" ]; then
         echo "Apigee service template path is required"
         exit 1
     fi
 
-    export org_name=$(grep -A 1 'org:' "$apigee_overrides_yaml_path" | grep 'org:' | awk '{print $2}')
+    export org_name=$(grep -A 1 'org:' "$OVERRIDES_YAML_PATH" | grep 'org:' | awk '{print $2}')
 
-    #Check if the apigee_namespace is already set
     # Set up base directories
     export APIGEE_HYBRID_BASE=output/$org_name/apigee-hybrid
     export APIGEE_HELM_CHARTS_BASE=helm-charts
@@ -55,7 +113,7 @@ setup_apigee() {
 
     # Set chart repository and version
     export CHART_REPO=oci://us-docker.pkg.dev/apigee-release/apigee-hybrid-helm-charts
-    export CHART_VERSION=${apigee_version:-1.14.2-hotfix.1}
+    export CHART_VERSION=${APIGEE_VERSION}
 
     # Pull all required Helm charts
     helm pull $CHART_REPO/apigee-operator --version $CHART_VERSION --untar
@@ -67,42 +125,33 @@ setup_apigee() {
     helm pull $CHART_REPO/apigee-telemetry --version $CHART_VERSION --untar
     helm pull $CHART_REPO/apigee-virtualhost --version $CHART_VERSION --untar
 
-    
-
-    #Get the filename from the path
-    local apigee_overrides_yaml_filename=$(basename $apigee_overrides_yaml_path)
-    local apigee_service_template_filename=$(basename $apigee_service_template_path)
-    local apigee_sa_key_json_filename=$(basename $apigee_sa_key_json_path)
-    local apigee_envgroup_cert_file_filename=$(basename $apigee_envgroup_cert_file_path)
-    local apigee_envgroup_private_key_file_filename=$(basename $apigee_envgroup_private_key_file_path)
+    # Get the filename from the path
+    local apigee_overrides_yaml_filename=$(basename $OVERRIDES_YAML_PATH)
+    local apigee_service_template_filename=$(basename $SERVICE_TEMPLATE_PATH)
+    local apigee_sa_key_json_filename=$(basename $SA_KEY_JSON_PATH)
+    local apigee_envgroup_cert_file_filename=$(basename $ENVGROUP_CERT_PATH)
+    local apigee_envgroup_private_key_file_filename=$(basename $ENVGROUP_PRIVATE_KEY_PATH)
 
     echo "apigee_overrides_yaml_filename: $apigee_overrides_yaml_filename"
     echo "apigee_sa_key_json_filename: $apigee_sa_key_json_filename"
     echo "apigee_envgroup_cert_file_filename: $apigee_envgroup_cert_file_filename"
     echo "apigee_envgroup_private_key_file_filename: $apigee_envgroup_private_key_file_filename"
     
-    
-    #Copy the overrides.yaml file to the apigee-hybrid/helm-charts/apigee-operator/templates/overrides.yaml
-    cp $apigee_overrides_yaml_path $APIGEE_HELM_CHARTS_HOME/$apigee_overrides_yaml_filename
-    cp $apigee_service_template_path $APIGEE_HELM_CHARTS_HOME/$apigee_service_template_filename
+    # Copy the overrides.yaml file
+    cp $OVERRIDES_YAML_PATH $APIGEE_HELM_CHARTS_HOME/$apigee_overrides_yaml_filename
+    cp $SERVICE_TEMPLATE_PATH $APIGEE_HELM_CHARTS_HOME/$apigee_service_template_filename
 
-    
-    #Copy the sa-key.json file to the apigee-hybrid/helm-charts/apigee-operator/templates/sa-key.json
-    cp -fr $apigee_sa_key_json_path $APIGEE_HELM_CHARTS_HOME/apigee-datastore/$apigee_sa_key_json_filename
-    cp -fr $apigee_sa_key_json_path $APIGEE_HELM_CHARTS_HOME/apigee-telemetry/$apigee_sa_key_json_filename
-    cp -fr $apigee_sa_key_json_path $APIGEE_HELM_CHARTS_HOME/apigee-org/$apigee_sa_key_json_filename
-    cp -fr $apigee_sa_key_json_path $APIGEE_HELM_CHARTS_HOME/apigee-env/$apigee_sa_key_json_filename
-
+    # Copy the sa-key.json file
+    cp -fr $SA_KEY_JSON_PATH $APIGEE_HELM_CHARTS_HOME/apigee-datastore/$apigee_sa_key_json_filename
+    cp -fr $SA_KEY_JSON_PATH $APIGEE_HELM_CHARTS_HOME/apigee-telemetry/$apigee_sa_key_json_filename
+    cp -fr $SA_KEY_JSON_PATH $APIGEE_HELM_CHARTS_HOME/apigee-org/$apigee_sa_key_json_filename
+    cp -fr $SA_KEY_JSON_PATH $APIGEE_HELM_CHARTS_HOME/apigee-env/$apigee_sa_key_json_filename
 
     mkdir -p $APIGEE_HELM_CHARTS_HOME/apigee-virtualhost/certs/
 
-    #Copy the cert file to the apigee-hybrid/helm-charts/apigee-operator/templates/cert.pem
-    cp -fr $apigee_envgroup_cert_file_path $APIGEE_HELM_CHARTS_HOME/apigee-virtualhost/certs/$apigee_envgroup_cert_file_filename
-
-    #Copy the private key file to the apigee-hybrid/helm-charts/apigee-operator/templates/key.pem
-    cp -fr $apigee_envgroup_private_key_file_path $APIGEE_HELM_CHARTS_HOME/apigee-virtualhost/certs/$apigee_envgroup_private_key_file_filename
-
-
+    # Copy the cert files
+    cp -fr $ENVGROUP_CERT_PATH $APIGEE_HELM_CHARTS_HOME/apigee-virtualhost/certs/$apigee_envgroup_cert_file_filename
+    cp -fr $ENVGROUP_PRIVATE_KEY_PATH $APIGEE_HELM_CHARTS_HOME/apigee-virtualhost/certs/$apigee_envgroup_private_key_file_filename
 }
 
 create_namespace() {
@@ -272,32 +321,23 @@ setup_ingress() {
     
 }
 
-#main function
+# Main function
 main() {
-
-    #$1: apigee_version default: 1.14.2-hotfix.1
-    #$2: apigee_namespace name default: apigee
-    #$3: apigee_overrides_yaml_path absolute path
-    #$4: apigee_service_template_path absolute path
-    #$5: apigee_sa_key_json_path absolute path
-    #$6: apigee_envgroup_cert_file_path absolute path
-    #$7: apigee_envgroup_private_key_file_path absolute path
-
-    setup_apigee $1 $2 $3 $4 $5 $6 $7
-    create_namespace $2
-    enable_control_plane_access $2 "overrides.yaml"
+    setup_apigee
+    create_namespace $APIGEE_NAMESPACE
+    enable_control_plane_access $APIGEE_NAMESPACE "overrides.yaml"
     install_crd
     install_cert_manager
-    install_operator $2 "overrides.yaml"
-    install_datastore $2 "overrides.yaml"
-    install_telemetry $2 "overrides.yaml"
-    install_redis $2 "overrides.yaml"
-    install_ingress_manager $2 "overrides.yaml"
-    install_org $2 "overrides.yaml"
-    install_env $2 "overrides.yaml"
-    install_envgroup $2 "overrides.yaml"
-    setup_ingress $2 "overrides.yaml"
-    
+    install_operator $APIGEE_NAMESPACE "overrides.yaml"
+    install_datastore $APIGEE_NAMESPACE "overrides.yaml"
+    install_telemetry $APIGEE_NAMESPACE "overrides.yaml"
+    install_redis $APIGEE_NAMESPACE "overrides.yaml"
+    install_ingress_manager $APIGEE_NAMESPACE "overrides.yaml"
+    install_org $APIGEE_NAMESPACE "overrides.yaml"
+    install_env $APIGEE_NAMESPACE "overrides.yaml"
+    install_envgroup $APIGEE_NAMESPACE "overrides.yaml"
+    setup_ingress $APIGEE_NAMESPACE "overrides.yaml"
 }
 
-main $1 $2 $3 $4 $5 $6 $7 
+# Run main function
+main

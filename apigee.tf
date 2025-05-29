@@ -333,13 +333,13 @@ resource "null_resource" "apigee_setup_execution" {
     # Using bash explicitly can be more robust.
     command = <<-EOT
       bash ./setup_apigee.sh \
-        "${var.apigee_version}" \
-        "${var.apigee_namespace}" \
-        "${abspath(local_file.apigee_overrides.filename)}" \
-        "${abspath(local_file.apigee_service.filename)}" \
-        "${abspath(local_file.apigee_non_prod_sa_key_file.filename)}" \
-        "${abspath(local_file.apigee_envgroup_cert_file.filename)}" \
-        "${abspath(local_file.apigee_envgroup_private_key_file.filename)}" 
+        --version "${var.apigee_version}" \
+        --namespace "${var.apigee_namespace}" \
+        --overrides "${abspath(local_file.apigee_overrides.filename)}" \
+        --service "${abspath(local_file.apigee_service.filename)}" \
+        --key "${abspath(local_file.apigee_non_prod_sa_key_file.filename)}" \
+        --cert "${abspath(local_file.apigee_envgroup_cert_file.filename)}" \
+        --private-key "${abspath(local_file.apigee_envgroup_private_key_file.filename)}" 
     EOT
     # Optional: set working_directory if your script needs to run from a specific location
     # working_directory = path.module

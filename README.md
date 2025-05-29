@@ -16,6 +16,8 @@ Once the terraform provisions the aks infrastructure, it proceeds to create Apig
 2.  **Create an Azure Service Principal or use your User Account**:
     *   For automation and CI/CD, it's recommended to create a Service Principal with the necessary permissions (e.g., "Contributor" on the subscription or a specific resource group). Follow instructions [here](https://learn.microsoft.com/en-us/azure/developer/terraform/authenticate-to-azure?tabs=bash#create-a-service-principal).
     *   Alternatively, you can authenticate as a user via Azure CLI.
+    ![Azure Config](images/azure-config.png "Azure Config")
+
 3.  **Download and install Terraform** to your local terminal as described [here](https://developer.hashicorp.com/terraform/install).
 4.  **Download and install the Azure CLI (az)** to your local terminal from where Terraform would be run, as described [here](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli).
 5.  **Download and install Helm** (version 3.10+ recommended, check Apigee docs for specific version compatibility).

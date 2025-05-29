@@ -1,6 +1,29 @@
 ## Disclaimer
 This tool is open-source software. It is not an officially supported Google product. It is not a part of Apigee, or any other officially supported Google Product.
 
+## Architecture
+
+The following diagram illustrates the architecture of Apigee Hybrid on Azure AKS:
+
+![Apigee Hybrid on Azure AKS Architecture](diagram/apigee_hybrid_aks.png)
+
+The architecture consists of:
+
+1. **Client Layer**:
+   - Web/Mobile clients making API calls to the AKS cluster
+
+2. **Azure Infrastructure**:
+   - Network Load Balancer for distributing incoming traffic
+   - AKS Cluster with:
+     - Runtime Pool for Apigee runtime components
+     - Data Pool for Apigee data components
+   - NAT Gateway for outbound connectivity
+
+3. **Google Cloud Platform**:
+   - Apigee Organization for API management
+   - Cloud Logging for log collection
+   - Cloud Monitoring for metrics and observability
+
 ## How to Setup Apigee hybrid on Azure AKS Clusters using Terraform
 
 The Terraform configuration defines a new Virtual Network (VNet) in which to provision the Azure Kubernetes Service (AKS) cluster. It uses the `azurerm` provider to create the required Azure resources, including the AKS cluster, node pools (with auto-scaling capabilities), Network Security Groups (NSGs), and necessary Azure RBAC configurations (e.g., using Managed Identities or Service Principals).
@@ -90,6 +113,8 @@ When you run `terraform apply`, the following resources are created in sequence:
    - Outputs important information like resource group name and kubeconfig
 
 The entire process typically takes 15-30 minutes to complete, depending on the size of your cluster and the number of resources being created.
+
+
 
 ## Accessing the Cluster
 

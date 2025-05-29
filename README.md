@@ -7,6 +7,9 @@ The Terraform configuration defines a new Virtual Network (VNet) in which to pro
 
 Open the `main.tf` file to review the resource configuration. The `azurerm_kubernetes_cluster` resource configures the cluster, including a default system node pool. Additional user node pools can be defined using `azurerm_kubernetes_cluster_node_pool` resources, for example, to have different VM sizes or capabilities for specific workloads (like Apigee runtime components).
 
+Once the terraform provisions the aks infrastructure, it proceeds to create Apigee Organization, Environment and Environment Group and installs Apigee Hybrid.
+
+
 ## Getting Started
 
 1.  **Setup an Azure Account/Subscription** if you don't have one. You can start with a free account [here](https://azure.microsoft.com/en-us/free/).
@@ -20,9 +23,7 @@ Open the `main.tf` file to review the resource configuration. The `azurerm_kuber
 
 ## Pre-Cluster Setup Steps
 
-1.  Perform steps 1, 2, and 3 in Part 1 of the Apigee Hybrid setup to create your Apigee organization, environment, and environment group, as described [here](https://cloud.google.com/apigee/docs/hybrid/v1.12/precog-overview).
-
-2.  **Authenticate with Azure**:
+1.  **Authenticate with Azure**:
     *   **Interactive Login (User Account)**: Run `az login`. This command will open a browser for authentication. The Azure CLI will then store your credentials locally.
     *   **Service Principal**: If you created a Service Principal, ensure your environment variables are set for Terraform to authenticate, or configure them in the Azure provider block:
         ```bash
@@ -31,22 +32,22 @@ Open the `main.tf` file to review the resource configuration. The `azurerm_kuber
         export ARM_SUBSCRIPTION_ID="your-subscription-id"
         export ARM_TENANT_ID="your-tenant-id"
         ```
-3. **Authenticate with GCP**:
+2. **Authenticate with GCP**:
     *   Ensure you have the Google Cloud SDK (gcloud) installed and configured.
     *   Ensure that Organization Policy is not disabled to create service account and associated Service Account Key.
     *   Ensure that the user performing terraform has the permissions to access Google Cloud resources. While not recommended but roles like `roles/editor` or `roles/owner` should ensure all tasks completes successfully.
     *   Follow the instructions in the Apigee Hybrid documentation to authenticate with GCP using `gcloud auth application-default login` and set the `GOOGLE_APPLICATION_CREDENTIALS` environment variable.
     *   Set the `gcloud config set project <your-gcp-project-id>`
 
-4.  **Customize the Terraform configuration files**:
+3.  **Customize the Terraform configuration files**:
     *   Review `main.tf` (and any module files) to adjust Azure resource definitions like VNet address spaces, AKS cluster version, node pool configurations (VM sizes, count, taints, labels for Apigee workloads).
     *   Update `variables.tf` and your `terraform.tfvars` file (or create one, e.g., `terraform.tfvars`) with your specific values (e.g., Azure region, resource group name, desired cluster name, node counts, VM SKUs).
     *   Ensure your Terraform configuration outputs key values like `resource_group_name` and `aks_cluster_name` which will be used later.
 
-5.  **Run `terraform plan`**:
+4.  **Run `terraform plan`**:
     Validate the list of Azure resources to be created. The exact count will vary based on your configuration. Review the plan carefully to ensure it matches your expectations.
 
-6.  **Run `terraform apply`**:
+5.  **Run `terraform apply`**:
     This will provision the Azure resources and create the AKS cluster. Confirm the apply when prompted. This process can take several minutes.
 
 ## What Happens During Terraform Apply

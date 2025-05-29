@@ -32,6 +32,9 @@ Open the `main.tf` file to review the resource configuration. The `azurerm_kuber
         export ARM_TENANT_ID="your-tenant-id"
         ```
 3. **Authenticate with GCP**:
+    *   Ensure you have the Google Cloud SDK (gcloud) installed and configured.
+    *   Ensure that Organization Policy is not disabled to create service account and associated Service Account Key.
+    *   Ensure that the user performing terraform has the permissions to access Google Cloud resources. While not recommended but roles like `roles/editor` or `roles/owner` should ensure all tasks completes successfully.
     *   Follow the instructions in the Apigee Hybrid documentation to authenticate with GCP using `gcloud auth application-default login` and set the `GOOGLE_APPLICATION_CREDENTIALS` environment variable.
     *   Set the `gcloud config set project <your-gcp-project-id>`
 
@@ -46,9 +49,99 @@ Open the `main.tf` file to review the resource configuration. The `azurerm_kuber
 6.  **Run `terraform apply`**:
     This will provision the Azure resources and create the AKS cluster. Confirm the apply when prompted. This process can take several minutes.
 
+## What Happens During Terraform Apply
+
+When you run `terraform apply`, the following resources are created in sequence:
+
+1. **Azure Infrastructure Setup**:
+   - Creates a new Resource Group with a random suffix
+   - Sets up a Virtual Network (VNet) with address space 10.0.0.0/16
+   - Creates a subnet for AKS nodes (10.0.1.0/24)
+   - Provisions a NAT Gateway with a public IP for outbound connectivity
+   - Associates the NAT Gateway with the AKS subnet
+
+2. **AKS Cluster Creation**:
+   - Creates the main AKS cluster with a system node pool
+   - Configures network plugin and policy as "azure"
+   - Sets up service CIDR (10.1.0.0/16) and DNS service IP (10.1.0.10)
+   - Enables system-assigned managed identity
+
+3. **Additional Node Pools**:
+   - Creates "apigeerun" node pool for Apigee runtime components
+   - Creates "apigeedata" node pool for Apigee data components
+   - Both pools support auto-scaling if enabled
+   - Configures appropriate VM sizes and disk sizes for each workload
+
+4. **GCP/Apigee Setup** (if enabled):
+   - Enables required Google Cloud APIs
+   - Creates a service account for Apigee with necessary IAM roles
+   - Generates and saves service account key
+   - Creates self-signed TLS certificates for Apigee environment group
+   - Generates Apigee overrides.yaml configuration file from the privided template file with mapped variables.
+   - Sets up Apigee organization, environment, and environment group
+   - Creates a directory output/${PROJECT_ID} to store generated certificates, keys , overrides.yaml and apigee-service.yaml.
+
+5. **Final Configuration**:
+   - Configures kubectl to connect to the new AKS cluster
+   - Installs Apigee Hybrid (using Helm) by calling setup_apigee.sh script. The scripts unbundles all helm charts in output/${PROJECT_ID}.
+   - Outputs important information like resource group name and kubeconfig
+
+The entire process typically takes 15-30 minutes to complete, depending on the size of your cluster and the number of resources being created.
+
 ## Accessing the Cluster
 
 Once the cluster is up, run the following command to configure `kubectl` to connect to your new AKS cluster. Ensure your Terraform configuration outputs `resource_group_name` and `aks_cluster_name`.
 
 ```bash
 az aks get-credentials --resource-group $(terraform output -raw resource_group_name) --name $(terraform output -raw aks_cluster_name) --overwrite-existing
+```
+
+## Cleanup
+
+When you're done with the Apigee hybrid setup and want to remove all created resources, follow these steps:
+
+1. **Remove Apigee Hybrid Components**:
+   ```bash
+   # Delete Apigee hybrid components from the cluster
+   helm uninstall <<apigee-hybrid-components>> -n apigee
+   ```
+
+2. **Destroy Terraform Resources**:
+   ```bash
+   # Remove all Azure resources created by Terraform
+   terraform destroy
+   ```
+   This will remove:
+   - The AKS cluster and all node pools
+   - Virtual Network and subnets
+   - NAT Gateway and associated resources
+   - Resource Group
+   - All other Azure resources created by the Terraform configuration
+
+3. **Clean Up Local Files**:
+   ```bash
+   # Remove generated certificates and keys
+   rm -rf output/${PROJECT_ID}/
+   
+   # Remove Terraform state files
+   rm -f terraform.tfstate*
+   ```
+
+4. **Optional: Remove GCP Resources**:
+   
+   Terraform destroy should clean this up but in case of failure, you can 
+   delete the GCP resources individually
+
+   If you created GCP resources (like Apigee organization, environment, etc.), you may want to remove them as well:
+   ```bash
+   # Delete Apigee environment group
+   gcloud apigee envgroups delete ${ENVGROUP_NAME} --organization=${PROJECT_ID}
+   
+   # Delete Apigee environment
+   gcloud apigee environments delete ${ENV_NAME} --organization=${PROJECT_ID}
+   
+   # Delete Apigee organization (if created)
+   gcloud apigee organizations delete ${PROJECT_ID}
+   ```
+
+Note: The `terraform destroy` command will prompt for confirmation before proceeding. Make sure you have backups of any important data before running the cleanup commands.
